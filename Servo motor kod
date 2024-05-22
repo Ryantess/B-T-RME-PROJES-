@@ -1,0 +1,108 @@
+from __future__ import division
+import time
+import Adafruit_PCA9685
+import ultra
+
+
+servo_directions = [1, 1, 1, 1]
+
+
+pwm = Adafruit_PCA9685.PCA9685()
+pwm.set_pwm_freq(50) 
+
+# Servo initial, max, min positions
+servo_configs = [
+    {'init': 300, 'max': 450, 'min': 150, 'pos': 300},
+    {'init': 300, 'max': 480, 'min': 160, 'pos': 300},
+    {'init': 300, 'max': 500, 'min': 100, 'pos': 300},
+    {'init': 300, 'max': 500, 'min': 300, 'pos': 300},
+]
+
+org_pos = 300
+
+def radar_scan():
+    global servo_configs
+    pwm0 = servo_configs[0]
+    scan_result = 'U: '
+    scan_speed = 1
+    if servo_directions[0]:
+        pwm0['pos'] = pwm0['max']
+    else:
+        pwm0['pos'] = pwm0['min']
+
+    pwm.set_pwm(0, 0, pwm0['pos'])
+    time.sleep(0.5)
+    scan_result += f"{ultra.checkdist()} "
+
+    while (pwm0['pos'] > pwm0['min'] if servo_directions[0] else pwm0['pos'] < pwm0['max']):
+        pwm0['pos'] += -scan_speed if servo_directions[0] else scan_speed
+        pwm.set_pwm(0, 0, pwm0['pos'])
+        scan_result += f"{ultra.checkdist()} "
+
+    pwm.set_pwm(0, 0, pwm0['init'])
+    return scan_result
+
+def ctrl_range(value, max_val, min_val):
+    return max(min(value, max_val), min_val)
+
+def adjust_camera_angle(direction, angle):
+    global org_pos
+    if angle == 'no':
+        angle = 50
+
+    if servo_directions[1]:
+        if direction == 'aşağı':
+            org_pos += angle
+        elif direction == 'yukarı':
+            org_pos -= angle
+    else:
+        if direction == 'aşağı':
+            org_pos -= angle
+        elif direction == 'yukarı':
+            org_pos += angle
+
+    org_pos = ctrl_range(org_pos, servo_configs[1]['max'], servo_configs[1]['min'])
+    pwm.set_all_pwm(0, org_pos)
+
+def move_servo(index, speed, direction):
+    global servo_configs
+    servo = servo_configs[index]
+    if direction == 'increase':
+        servo['pos'] += speed if servo_directions[index] else -speed
+    else:
+        servo['pos'] -= speed if servo_directions[index] else speed
+
+    servo['pos'] = ctrl_range(servo['pos'], servo['max'], servo['min'])
+    pwm.set_pwm(index, 0, servo['pos'])
+
+def servo_init():
+    for i, servo in enumerate(servo_configs):
+        pwm.set_pwm(i, 0, servo['pos'])
+    try:
+        pwm.set_all_pwm(0, 300)
+    except:
+        pass
+
+def clean_all():
+    global pwm
+    pwm = Adafruit_PCA9685.PCA9685()
+    pwm.set_pwm_freq(50)
+    pwm.set_all_pwm(0, 0)
+
+def ahead():
+    global servo_configs
+    pwm.set_pwm(0, 0, servo_configs[0]['init'])
+    pwm.set_pwm(1, 0, (servo_configs[1]['max'] - 20))
+    servo_configs[0]['pos'] = servo_configs[0]['init']
+    servo_configs[1]['pos'] = servo_configs[1]['max'] - 20
+
+def get_direction():
+    return servo_configs[0]['pos'] - servo_configs[0]['init']
+
+if __name__ == '__main__':
+    channel = 0  r
+    while True:
+        pwm.set_pwm(channel, 0, 150)
+        time.sleep(1)
+        pwm.set_pwm(channel, 0, 450)
+        time.sleep(1)
